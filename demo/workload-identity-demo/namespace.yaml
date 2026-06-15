@@ -1,0 +1,9 @@
+# Namespace must match var.workload_namespace (terraform/variables.tf, default
+# "workload-demo") so the federated credential subject in modules/workload-identity
+# ("system:serviceaccount:<namespace>:<sa-name>") actually matches this ServiceAccount.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: workload-demo
+  labels:
+    azure.workload.identity/use: "true"

@@ -1,0 +1,27 @@
+name: Gitleaks (secret scanning)
+
+# Runs first in the pipeline, on every push and PR, regardless of which files
+# changed — a leaked credential in a doc, script, or tfvars example is just as
+# dangerous as one in app code. Free (gitleaks is Apache-2.0, no license key
+# required for the GitHub Action's default ruleset).
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  gitleaks:
+    name: Scan for committed secrets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # scan full history, not just the latest commit
+
+      - name: Gitleaks scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

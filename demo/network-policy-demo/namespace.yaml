@@ -1,0 +1,8 @@
+# Any namespace other than kube-system/kyverno/gatekeeper-system gets an
+# auto-generated "default-deny-ingress" NetworkPolicy from Kyverno
+# (modules/kyverno: add-default-networkpolicy) the moment it's created — that
+# policy is what actually blocks the attacker pod below, with zero extra YAML.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: namespace-a

@@ -1,0 +1,63 @@
+# Proves the Zero Trust pod-identity chain end to end:
+#   ServiceAccount token (projected, signed by AKS OIDC issuer)
+#     -> exchanged for an Entra ID token (no stored secret, no node identity sharing)
+#     -> "Key Vault Secrets User" RBAC (read-only) lets it fetch ${KEY_VAULT_URI}/secrets/demo-secret
+#
+# ${IMAGE} and ${KEY_VAULT_URI} are filled by `envsubst` at deploy time (see
+# .github/workflows/deploy.yml and docs/INCIDENT_RESPONSE_DEMO.md for manual runs —
+# export KEY_VAULT_URI="$(terraform -chdir=terraform output -raw key_vault_uri)" first).
+# Inside the container, the Azure Identity SDK's DefaultAzureCredential (or
+# `az login --identity`) picks up the projected ServiceAccount token automatically —
+# no connection string, no secret reference, nothing to leak.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: platform-app
+  namespace: workload-demo
+  labels:
+    app: platform-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: platform-app
+  template:
+    metadata:
+      labels:
+        app: platform-app
+        azure.workload.identity/use: "true"
+    spec:
+      serviceAccountName: workload-demo-sa
+      automountServiceAccountToken: true
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: platform-app
+          image: "${IMAGE}"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          env:
+            - name: AZURE_KEY_VAULT_URI
+              value: "${KEY_VAULT_URI}"
+            - name: AZURE_KEY_VAULT_SECRET_NAME
+              value: "demo-secret"
+          ports:
+            - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: platform-app
+  namespace: workload-demo
+spec:
+  selector:
+    app: platform-app
+  ports:
+    - port: 80
+      targetPort: 8080

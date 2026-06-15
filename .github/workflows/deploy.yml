@@ -1,0 +1,60 @@
+name: Deploy to AKS
+
+# Runs after the supply-chain pipeline produces a scanned, SBOM'd, signed image.
+# The deploy identity authenticates with no client secret (OIDC federation,
+# modules/github-oidc) and is scoped to exactly two roles: AcrPush + AKS RBAC Writer.
+on:
+  workflow_run:
+    workflows: ["Build, Scan, SBOM, Sign"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  IMAGE_NAME: ${{ vars.ACR_LOGIN_SERVER }}/platform-app
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  deploy:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get AKS credentials (Azure RBAC — no local accounts)
+        run: |
+          az aks get-credentials \
+            --resource-group ${{ vars.AKS_RESOURCE_GROUP }} \
+            --name ${{ vars.AKS_CLUSTER_NAME }} \
+            --overwrite-existing
+
+      - name: Install kubelogin (cluster has local accounts disabled)
+        run: az aks install-cli --only-show-errors || true
+
+      - name: Convert kubeconfig to use kubelogin (workload-identity / OIDC token from this runner)
+        run: kubelogin convert-kubeconfig -l azurecli
+
+      - name: Apply namespace and workload-identity ServiceAccount
+        env:
+          WORKLOAD_IDENTITY_CLIENT_ID: ${{ vars.WORKLOAD_IDENTITY_CLIENT_ID }}
+        run: |
+          kubectl apply -f demo/workload-identity-demo/namespace.yaml
+          envsubst < demo/workload-identity-demo/service-account.yaml | kubectl apply -f -
+
+      - name: Substitute image/Key Vault URI and deploy
+        env:
+          IMAGE: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          KEY_VAULT_URI: ${{ vars.KEY_VAULT_URI }}
+        run: |
+          envsubst < demo/workload-identity-demo/deployment.yaml | kubectl apply -f -
+          kubectl rollout status deployment/platform-app -n ${{ vars.WORKLOAD_NAMESPACE }} --timeout=300s

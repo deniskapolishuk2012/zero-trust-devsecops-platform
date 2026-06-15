@@ -1,0 +1,23 @@
+# Represents a legitimate workload that is explicitly allowed to reach
+# `backend` — see network-policy-allow-frontend-to-backend.yaml.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: frontend
+  namespace: namespace-a
+  labels:
+    app: frontend
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 100
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: frontend
+      image: curlimages/curl:8.10.1
+      command: ["sleep", "3600"]
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]

@@ -1,0 +1,24 @@
+# Represents a workload with no business reason to reach `backend` — no
+# NetworkPolicy grants it ingress, so Kyverno's auto-generated
+# default-deny-ingress policy (modules/kyverno) blocks it outright.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: attacker-pod
+  namespace: namespace-a
+  labels:
+    app: attacker
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 100
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: attacker
+      image: curlimages/curl:8.10.1
+      command: ["sleep", "3600"]
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]

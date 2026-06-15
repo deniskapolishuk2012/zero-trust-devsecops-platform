@@ -1,0 +1,32 @@
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+*.tfplan
+tfplan.out
+tfplan*.out
+*.tfplan.out
+apply*.log
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Cosign keys — generated locally by scripts/powershell/Generate-CosignKeys.ps1,
+# private key belongs in GitHub Secrets, never in git
+.cosign/
+cosign.key
+
+# Kubeconfig
+kubeconfig
+*.kubeconfig
+
+# OS / editor
+.DS_Store
+Thumbs.db

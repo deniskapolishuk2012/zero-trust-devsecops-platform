@@ -1,0 +1,25 @@
+version: 2
+updates:
+  # Pin/patch updates for the Flask demo app
+  - package-ecosystem: "pip"
+    directory: "/app"
+    schedule:
+      interval: "weekly"
+
+  # Base image bumps for the Dockerfile feed the Trivy quality gate on the next build
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  # Provider/module version bumps in Terraform
+  - package-ecosystem: "terraform"
+    directory: "/terraform"
+    schedule:
+      interval: "weekly"
+
+  # Keep the GitHub Actions themselves (gitleaks, trivy, cosign, etc.) current
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

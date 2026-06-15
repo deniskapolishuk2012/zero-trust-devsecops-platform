@@ -1,0 +1,19 @@
+=== NetworkPolicy demo output ===
+--- networkpolicies in namespace-a ---
+NAME                        POD-SELECTOR   AGE
+allow-frontend-to-backend   app=backend    18s
+default-deny-ingress        <none>         2m33s
+
+--- pods in namespace-a ---
+NAME                       READY   STATUS    RESTARTS   AGE    IP           NODE                           NOMINATED NODE   READINESS GATES
+attacker-pod               1/1     Running   0          56s    10.10.0.41   aks-user-38511677-vmss000000   <none>           <none>
+backend-68dcb9fbf6-jwdlc   1/1     Running   0          105s   10.10.0.59   aks-user-38511677-vmss000000   <none>           <none>
+frontend                   1/1     Running   0          57s    10.10.0.40   aks-user-38511677-vmss000000   <none>           <none>
+
+--- frontend -> backend (allowed) ---
+HTTP 200
+
+--- attacker-pod -> backend (blocked by default-deny) ---
+HTTP 000
+curl: (28) Connection timed out after 5002 milliseconds
+command terminated with exit code 28

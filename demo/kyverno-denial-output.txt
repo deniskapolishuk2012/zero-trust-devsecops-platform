@@ -1,0 +1,50 @@
+Error from server: error when creating "../demo/privileged-pod-attempt.yaml": admission webhook "validate.kyverno.svc-fail" denied the request: 
+
+resource Pod/workload-demo/attacker-privileged-probe was blocked due to the following policies 
+
+disallow-capabilities:
+  adding-capabilities: Any capabilities added beyond the allowed list (AUDIT_WRITE,
+    CHOWN, DAC_OVERRIDE, FOWNER, FSETID, KILL, MKNOD, NET_BIND_SERVICE, SETFCAP, SETGID,
+    SETPCAP, SETUID, SYS_CHROOT) are disallowed.
+disallow-capabilities-strict:
+  adding-capabilities-strict: 'validation failure: Any capabilities added other than
+    NET_BIND_SERVICE are disallowed.'
+  require-drop-all: 'validation failure: Containers must drop `ALL` capabilities.'
+disallow-host-namespaces:
+  host-namespaces: 'validation error: Sharing the host namespaces is disallowed. The
+    fields spec.hostNetwork, spec.hostIPC, and spec.hostPID must be unset or set to
+    `false`. rule host-namespaces failed at path /spec/hostNetwork/'
+disallow-host-path:
+  host-path: 'validation error: HostPath volumes are forbidden. The field spec.volumes[*].hostPath
+    must be unset. rule host-path failed at path /spec/volumes/0/hostPath/'
+disallow-privilege-escalation:
+  privilege-escalation: 'validation error: Privilege escalation is disallowed. The
+    fields spec.containers[*].securityContext.allowPrivilegeEscalation, spec.initContainers[*].securityContext.allowPrivilegeEscalation,
+    and spec.ephemeralContainers[*].securityContext.allowPrivilegeEscalation must
+    be set to `false`. rule privilege-escalation failed at path /spec/containers/0/securityContext/allowPrivilegeEscalation/'
+disallow-privileged-containers:
+  privileged-containers: 'validation error: Privileged mode is disallowed. The fields
+    spec.containers[*].securityContext.privileged and spec.initContainers[*].securityContext.privileged
+    must be unset or set to `false`. rule privileged-containers failed at path /spec/containers/0/securityContext/privileged/'
+require-run-as-non-root-user:
+  run-as-non-root-user: 'validation error: Running as root is not allowed. The fields
+    spec.securityContext.runAsUser, spec.containers[*].securityContext.runAsUser,
+    spec.initContainers[*].securityContext.runAsUser, and spec.ephemeralContainers[*].securityContext.runAsUser
+    must be unset or set to a number greater than zero. rule run-as-non-root-user
+    failed at path /spec/containers/0/securityContext/runAsUser/'
+require-run-as-nonroot:
+  run-as-non-root: 'validation error: Running as root is not allowed. Either the field
+    spec.securityContext.runAsNonRoot must be set to `true`, or the fields spec.containers[*].securityContext.runAsNonRoot,
+    spec.initContainers[*].securityContext.runAsNonRoot, and spec.ephemeralContainers[*].securityContext.runAsNonRoot
+    must be set to `true`. rule run-as-non-root[0] failed at path /spec/securityContext/runAsNonRoot/
+    rule run-as-non-root[1] failed at path /spec/containers/0/securityContext/runAsNonRoot/'
+restrict-seccomp-strict:
+  check-seccomp-strict: 'validation error: Use of custom Seccomp profiles is disallowed.
+    The fields spec.securityContext.seccompProfile.type, spec.containers[*].securityContext.seccompProfile.type,
+    spec.initContainers[*].securityContext.seccompProfile.type, and spec.ephemeralContainers[*].securityContext.seccompProfile.type
+    must be set to `RuntimeDefault` or `Localhost`. rule check-seccomp-strict[0] failed
+    at path /spec/securityContext/seccompProfile/ rule check-seccomp-strict[1] failed
+    at path /spec/containers/0/securityContext/seccompProfile/'
+restrict-volume-types:
+  restricted-volumes: 'Only the following types of volumes may be used: configMap,
+    csi, downwardAPI, emptyDir, ephemeral, persistentVolumeClaim, projected, and secret.'

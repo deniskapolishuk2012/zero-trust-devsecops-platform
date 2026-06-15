@@ -1,0 +1,22 @@
+# The one explicit "allow" in this demo: only pods labeled app=frontend may
+# reach `backend` on port 80. Everything else — including attacker-pod — stays
+# blocked by Kyverno's auto-generated default-deny-ingress policy for
+# namespace-a (modules/kyverno: add-default-networkpolicy).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-frontend-to-backend
+  namespace: namespace-a
+spec:
+  podSelector:
+    matchLabels:
+      app: backend
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: frontend
+      ports:
+        - port: 8080

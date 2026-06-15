@@ -1,0 +1,105 @@
+name: Build, Scan, SBOM, Sign
+
+# Supply-chain gate (Sprint 3): every image that reaches ACR has been scanned,
+# has an SBOM attached, and is signed — Kyverno (Sprint 4) refuses to run anything
+# that skipped this pipeline.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - "Dockerfile"
+      - ".github/workflows/build-scan-sign.yml"
+
+permissions:
+  id-token: write   # required for OIDC federation — azure/login needs no client secret
+  contents: read
+
+env:
+  IMAGE_NAME: ${{ vars.ACR_LOGIN_SERVER }}/platform-app
+  # Immutable tag — Kyverno's disallow-latest-tag policy rejects ":latest" outright
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  build-scan-sign:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # No client secret: GitHub presents its OIDC token, Entra ID trusts it because
+      # of the federated credential created in modules/github-oidc
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: ACR login
+        run: az acr login --name ${{ vars.ACR_NAME }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+
+      # Quality gate: block the pipeline before a vulnerable image ever reaches ACR
+      - name: Trivy vulnerability scan (quality gate)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+          ignore-unfixed: true
+
+      - name: Upload Trivy results to code scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+
+      # SBOM travels with the image — Sentinel/Defender and any downstream consumer
+      # can answer "what's actually in this thing" without re-scanning from scratch
+      - name: Generate SBOM (Syft, SPDX)
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ env.IMAGE_TAG }}
+          path: sbom.spdx.json
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+
+      # Key-based signing — the private key never leaves GitHub Secrets, the public
+      # key is the `cosign_public_key` Terraform variable Kyverno verifies against.
+      # (Generate the pair once with scripts/generate-cosign-keys.sh.)
+      - name: Sign image
+        env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+        run: |
+          echo "$COSIGN_PRIVATE_KEY" > cosign.key
+          cosign sign --yes --key cosign.key "${IMAGE_NAME}:${IMAGE_TAG}"
+          rm -f cosign.key
+
+      # Attach the SBOM as a verifiable attestation on the image itself
+      - name: Attest SBOM
+        env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+        run: |
+          echo "$COSIGN_PRIVATE_KEY" > cosign.key
+          cosign attest --yes --key cosign.key --type spdxjson --predicate sbom.spdx.json "${IMAGE_NAME}:${IMAGE_TAG}"
+          rm -f cosign.key

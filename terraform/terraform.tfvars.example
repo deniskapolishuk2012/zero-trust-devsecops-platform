@@ -1,0 +1,22 @@
+# Copy to terraform.tfvars and fill in real values. Never commit terraform.tfvars.
+
+subscription_id = "00000000-0000-0000-0000-000000000000"
+location        = "westeurope"
+
+# Must be globally unique, alphanumeric only (becomes acr<suffix>ztp)
+acr_name_suffix = "ztp01"
+
+# Repo that gets OIDC-federated deploy access (Sprint 2)
+github_org    = "your-github-org"
+github_repo   = "zero-trust-devsecops-platform"
+github_branch = "main"
+
+# Entra ID group(s) granted cluster-admin via Azure RBAC — required because the
+# cluster has local accounts disabled (az ad group show --group <name> --query id)
+aks_admin_group_object_ids = [
+  "00000000-0000-0000-0000-000000000000",
+]
+
+# Leave empty until Cosign keys are generated in Sprint 3 — the Kyverno
+# verify-images policy stays disabled until this is set
+cosign_public_key = ""
