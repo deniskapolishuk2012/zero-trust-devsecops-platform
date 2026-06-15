@@ -29,10 +29,6 @@ resource "azurerm_key_vault" "this" {
     virtual_network_subnet_ids = [var.aks_subnet_id]
   }
 
-  lifecycle {
-    prevent_destroy = true
-  }
-
   tags = var.common_tags
 }
 

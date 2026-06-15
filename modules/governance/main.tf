@@ -2,20 +2,12 @@ resource "azurerm_resource_group" "platform" {
   name     = "rg-platform-ztp"
   location = var.location
   tags     = var.common_tags
-
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 resource "azurerm_resource_group" "security" {
   name     = "rg-security-ztp"
   location = var.location
   tags     = var.common_tags
-
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 resource "azurerm_management_lock" "platform" {

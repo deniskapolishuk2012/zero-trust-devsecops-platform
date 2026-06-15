@@ -19,10 +19,6 @@ resource "azurerm_container_registry" "this" {
   }
 
   tags = var.common_tags
-
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 resource "azurerm_management_lock" "acr" {

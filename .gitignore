@@ -9,6 +9,7 @@ tfplan.out
 tfplan*.out
 *.tfplan.out
 apply*.log
+destroy*.log
 crash.log
 crash.*.log
 override.tf
