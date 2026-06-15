@@ -127,5 +127,7 @@ module "kyverno" {
 module "kube_bench" {
   source = "../modules/kube-bench"
 
-  depends_on = [module.aks]
+  namespace = module.kyverno.kube_bench_namespace
+
+  depends_on = [module.kyverno]
 }

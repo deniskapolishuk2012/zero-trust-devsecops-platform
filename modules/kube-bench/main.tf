@@ -1,9 +1,3 @@
-resource "kubernetes_namespace" "this" {
-  metadata {
-    name = "kube-bench"
-  }
-}
-
 # Compliance as Code (Sprint 6): runs the CIS Kubernetes Benchmark — using AKS's own
 # profile (aks-1.0) rather than generic CIS, since AKS manages the control plane and
 # many upstream checks don't apply — against every node on a recurring schedule.
@@ -19,7 +13,7 @@ resource "kubectl_manifest" "kube_bench_cronjob" {
     kind       = "CronJob"
     metadata = {
       name      = "kube-bench"
-      namespace = kubernetes_namespace.this.metadata[0].name
+      namespace = var.namespace
     }
     spec = {
       schedule = var.schedule
@@ -53,5 +47,4 @@ resource "kubectl_manifest" "kube_bench_cronjob" {
     }
   })
 
-  depends_on = [kubernetes_namespace.this]
 }
