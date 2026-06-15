@@ -61,6 +61,37 @@ graph TB
     style incluster fill:#5c1a3a,color:#fff
 ```
 
+## Live Deployment Evidence
+
+The architecture above was deployed end-to-end on Azure (47 resources via
+`terraform apply`), exercised through both demo scenarios, and torn down to
+stay inside the trial budget. Screenshots below are from that live run.
+
+**Identity & access — no local accounts, no standing secrets**
+
+| | |
+|---|---|
+| ![AKS security configuration](docs/screenshots/Screenshot%202026-06-15%20203236.png) | AKS cluster: **Microsoft Entra ID authentication with Azure RBAC**, "Kubernetes local accounts" disabled, OIDC issuer + Workload Identity enabled. |
+| ![Key Vault RBAC](docs/screenshots/Screenshot%202026-06-15%20203752.png) | Key Vault IAM scoped to this resource: the workload's managed identity has exactly **Key Vault Secrets User** — nothing more. |
+| ![GitHub federated credentials](docs/screenshots/Screenshot%202026-06-15%20203849.png) | GitHub Actions app registration: **0 client secrets**, 2 OIDC federated credentials (branch + pull_request) — CI/CD authenticates without storing any password. |
+
+**Hardened platform**
+
+| | |
+|---|---|
+| ![ACR overview](docs/screenshots/Screenshot%202026-06-15%20203419.png) | ACR Premium tier with quarantine + retention policies. |
+| ![ACR networking](docs/screenshots/Screenshot%202026-06-15%20203520.png) | ACR public network access **Disabled** — image pulls only via the AKS subnet. |
+| ![Defender for Containers](docs/screenshots/Screenshot%202026-06-15%20204054.png) | Microsoft Defender for Containers plan **On**, covering the registry and cluster. |
+
+**Detection — Kyverno denial → Sentinel incident, mapped to MITRE ATT&CK**
+
+| | |
+|---|---|
+| ![Sentinel analytics rules](docs/screenshots/Screenshot%202026-06-15%20204315.png) | 4 custom Sentinel analytics rules, all enabled, severities High/Medium. |
+| ![Sentinel rule detail](docs/screenshots/Screenshot%202026-06-15%20204436.png) | `ZTP-Privileged-Container-Blocked` rule detail: MITRE ATT&CK **T1610 (Deploy Container)** / T1611 (Escape to Host), 5-minute query frequency. |
+| ![Log Analytics KQL query](docs/screenshots/Screenshot%202026-06-15%20204605.png) | Raw audit trail: Kyverno's admission webhook denying `attacker-privileged-probe` for violating 9 Pod Security policies. |
+| ![Sentinel incident](docs/screenshots/Screenshot%202026-06-15%20204717.png) | The resulting **Sentinel incident** — Severity: High, Status: Active — created automatically from that denial. |
+
 ## Terraform Modules
 
 | Module | Sprint | Description |
