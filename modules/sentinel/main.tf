@@ -20,7 +20,7 @@ resource "azurerm_sentinel_alert_rule_scheduled" "privileged_container_blocked" 
   display_name               = "ZTP-Privileged-Container-Blocked"
   description                = "A pod creation request was denied by an admission controller (Kyverno) for violating the no-privileged-containers policy"
   severity                   = "High"
-  enabled                    = true
+  enabled                    = false
 
   query = <<-EOT
     AzureDiagnostics
@@ -59,7 +59,7 @@ resource "azurerm_sentinel_alert_rule_scheduled" "pod_exec_attempts" {
   display_name               = "ZTP-Pod-Exec-Attempts"
   description                = "A user invoked 'kubectl exec' against pods more than expected within an hour"
   severity                   = "Medium"
-  enabled                    = true
+  enabled                    = false
 
   query = <<-EOT
     AzureDiagnostics
@@ -94,7 +94,7 @@ resource "azurerm_sentinel_alert_rule_scheduled" "acr_auth_failures" {
   display_name               = "ZTP-ACR-Auth-Failures"
   description                = "Repeated failed authentication attempts against the container registry from the same caller"
   severity                   = "Medium"
-  enabled                    = true
+  enabled                    = false
 
   query = <<-EOT
     AzureDiagnostics
@@ -128,7 +128,7 @@ resource "azurerm_sentinel_alert_rule_scheduled" "key_vault_secret_enumeration" 
   display_name               = "ZTP-KeyVault-Secret-Enumeration"
   description                = "A single caller read an unusually high number of Key Vault secrets within an hour"
   severity                   = "Medium"
-  enabled                    = true
+  enabled                    = false
 
   query = <<-EOT
     AzureDiagnostics
