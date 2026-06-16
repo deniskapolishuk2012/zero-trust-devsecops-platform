@@ -7,7 +7,7 @@ resource "azurerm_container_registry" "this" {
   sku                 = "Premium"
   admin_enabled       = false
 
-  public_network_access_enabled = false
+  public_network_access_enabled = true
 
   quarantine_policy_enabled = true
   trust_policy {
