@@ -7,7 +7,7 @@ on:
   workflow_run:
     workflows: ["Build, Scan, SBOM, Sign"]
     types: [completed]
-    branches: [main]
+    branches: [master]
 
 permissions:
   id-token: write
