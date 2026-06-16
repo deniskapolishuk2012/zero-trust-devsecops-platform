@@ -52,6 +52,7 @@ resource "azurerm_sentinel_alert_rule_scheduled" "privileged_container_blocked" 
 # Interactive exec into a running pod is a common post-compromise step (credential
 # theft, lateral movement). Repeated attempts from the same identity are suspicious.
 # Maps to MITRE ATT&CK T1609 (Container Administration Command).
+# Sequential depends_on avoids parallel Sentinel API 400 errors on workspace lookup.
 resource "azurerm_sentinel_alert_rule_scheduled" "pod_exec_attempts" {
   name                       = "ZTP-Pod-Exec-Attempts"
   log_analytics_workspace_id = azurerm_sentinel_log_analytics_workspace_onboarding.this.workspace_id
@@ -81,7 +82,7 @@ resource "azurerm_sentinel_alert_rule_scheduled" "pod_exec_attempts" {
   tactics    = ["Execution", "LateralMovement"]
   techniques = ["T1609"]
 
-  depends_on = [time_sleep.sentinel_ready]
+  depends_on = [time_sleep.sentinel_ready, azurerm_sentinel_alert_rule_scheduled.privileged_container_blocked]
 }
 
 # Repeated failed registry logins look like credential stuffing against ACR — the
@@ -114,7 +115,7 @@ resource "azurerm_sentinel_alert_rule_scheduled" "acr_auth_failures" {
   tactics    = ["CredentialAccess"]
   techniques = ["T1110"]
 
-  depends_on = [time_sleep.sentinel_ready]
+  depends_on = [time_sleep.sentinel_ready, azurerm_sentinel_alert_rule_scheduled.pod_exec_attempts]
 }
 
 # A burst of secret reads from a single caller looks like enumeration — either
