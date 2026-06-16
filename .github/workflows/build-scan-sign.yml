@@ -13,8 +13,9 @@ on:
   workflow_dispatch:
 
 permissions:
-  id-token: write   # required for OIDC federation — azure/login needs no client secret
+  id-token: write        # OIDC federation — azure/login needs no client secret
   contents: read
+  security-events: write # upload Trivy SARIF to GitHub Security tab
 
 env:
   IMAGE_NAME: ${{ vars.ACR_LOGIN_SERVER }}/platform-app
