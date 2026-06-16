@@ -49,7 +49,13 @@ variable "github_repo" {
 variable "github_branch" {
   description = "Branch trusted with deploy-capable OIDC credentials"
   type        = string
-  default     = "main"
+  default     = "master"
+}
+
+variable "operator_ip" {
+  description = "Your current public IP (curl ifconfig.me) — temporarily whitelisted in Key Vault so Terraform can create the demo secret. Leave empty after destroy."
+  type        = string
+  default     = ""
 }
 
 # --- AKS / Azure AD RBAC ---

@@ -34,6 +34,7 @@ module "key_vault" {
   location            = var.location
   resource_group_name = module.governance.rg_security_name
   aks_subnet_id       = module.networking.aks_subnet_id
+  operator_ip         = var.operator_ip
   common_tags         = local.common_tags
 
   depends_on = [module.networking]

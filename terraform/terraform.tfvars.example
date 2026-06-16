@@ -9,7 +9,7 @@ acr_name_suffix = "ztp01"
 # Repo that gets OIDC-federated deploy access (Sprint 2)
 github_org    = "your-github-org"
 github_repo   = "zero-trust-devsecops-platform"
-github_branch = "main"
+github_branch = "master"
 
 # Entra ID group(s) granted cluster-admin via Azure RBAC — required because the
 # cluster has local accounts disabled (az ad group show --group <name> --query id)
@@ -17,6 +17,12 @@ aks_admin_group_object_ids = [
   "00000000-0000-0000-0000-000000000000",
 ]
 
-# Leave empty until Cosign keys are generated in Sprint 3 — the Kyverno
-# verify-images policy stays disabled until this is set
+# Your current public IP — run: curl ifconfig.me
+# Temporarily whitelists your machine in Key Vault so Terraform can create demo-secret.
+# Set to "" after destroy (or leave — tfvars is gitignored).
+operator_ip = ""
+
+# Cosign public key — generate with scripts/powershell/Generate-CosignKeys.ps1,
+# then paste the contents of .cosign/cosign.pub here (including -----BEGIN...-----).
+# Leave empty to skip image-signature verification until Sprint 3 is wired up.
 cosign_public_key = ""
