@@ -38,8 +38,17 @@ jobs:
 
       - name: ACR login
         run: |
-          TOKEN=$(az acr login --name ${{ vars.ACR_NAME }} --expose-token --output tsv --query accessToken)
-          echo "$TOKEN" | docker login ${{ vars.ACR_LOGIN_SERVER }} \
+          # az acr login requires a refresh token which OIDC SP auth doesn't provide.
+          # Instead: get the cached management access token and do the OAuth exchange directly.
+          ACCESS_TOKEN=$(az account get-access-token --resource https://management.azure.com \
+            --query accessToken -o tsv)
+          REFRESH_TOKEN=$(curl -s -X POST \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            --data-urlencode "grant_type=access_token" \
+            --data-urlencode "service=${{ vars.ACR_LOGIN_SERVER }}" \
+            --data-urlencode "access_token=$ACCESS_TOKEN" \
+            "https://${{ vars.ACR_LOGIN_SERVER }}/oauth2/exchange" | jq -r .refresh_token)
+          echo "$REFRESH_TOKEN" | docker login ${{ vars.ACR_LOGIN_SERVER }} \
             --username 00000000-0000-0000-0000-000000000000 --password-stdin
 
       - uses: docker/setup-buildx-action@v3
