@@ -2,6 +2,14 @@ resource "azurerm_sentinel_log_analytics_workspace_onboarding" "this" {
   workspace_id = var.log_analytics_workspace_id
 }
 
+# Sentinel backend needs ~2 minutes after onboarding before it can validate
+# KQL queries in alert rules — without this wait, rule creation fails with
+# "workspace could not be found" even though onboarding succeeded.
+resource "time_sleep" "sentinel_ready" {
+  create_duration = "120s"
+  depends_on      = [azurerm_sentinel_log_analytics_workspace_onboarding.this]
+}
+
 # Sprint 7 demo trigger: an attempt to deploy a privileged container is rejected by
 # the API server (Kyverno admission webhook returns 403) — this rule turns that
 # kube-audit-admin entry into an incident. Maps to MITRE ATT&CK T1610 (Deploy Container)
@@ -37,6 +45,8 @@ resource "azurerm_sentinel_alert_rule_scheduled" "privileged_container_blocked" 
 
   tactics    = ["PrivilegeEscalation", "DefenseEvasion"]
   techniques = ["T1610", "T1611"]
+
+  depends_on = [time_sleep.sentinel_ready]
 }
 
 # Interactive exec into a running pod is a common post-compromise step (credential
@@ -70,6 +80,8 @@ resource "azurerm_sentinel_alert_rule_scheduled" "pod_exec_attempts" {
 
   tactics    = ["Execution", "LateralMovement"]
   techniques = ["T1609"]
+
+  depends_on = [time_sleep.sentinel_ready]
 }
 
 # Repeated failed registry logins look like credential stuffing against ACR — the
@@ -101,6 +113,8 @@ resource "azurerm_sentinel_alert_rule_scheduled" "acr_auth_failures" {
 
   tactics    = ["CredentialAccess"]
   techniques = ["T1110"]
+
+  depends_on = [time_sleep.sentinel_ready]
 }
 
 # A burst of secret reads from a single caller looks like enumeration — either
@@ -132,4 +146,6 @@ resource "azurerm_sentinel_alert_rule_scheduled" "key_vault_secret_enumeration" 
 
   tactics    = ["CredentialAccess"]
   techniques = ["T1552"]
+
+  depends_on = [time_sleep.sentinel_ready]
 }
