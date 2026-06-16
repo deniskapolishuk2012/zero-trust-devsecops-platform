@@ -5,9 +5,9 @@ secure infrastructure → keyless CI/CD → supply-chain verification → in-clu
 admission control → detection & response → continuous compliance. Designed as a
 reference architecture and incident-response demo.
 
-> Code-only checkpoint: everything below is written in Terraform and `terraform validate`
-> passes, but **no `terraform apply` has been run yet**. Review, fill in `terraform.tfvars`,
-> then apply.
+> Live deployment validated end-to-end on Azure (June 2026): Terraform-provisioned infrastructure,
+> full CI/CD supply-chain pipeline (scan → sign → deploy), and workload identity reading a Key Vault
+> secret — all verified with screenshots below.
 
 ## Architecture
 
@@ -67,15 +67,41 @@ The architecture above was deployed end-to-end on Azure (47 resources via
 `terraform apply`), exercised through both demo scenarios, and torn down to
 stay inside the trial budget. Screenshots below are from that live run.
 
-**Identity & access — no local accounts, no standing secrets**
+### Supply-chain CI/CD pipeline
+
+| | |
+|---|---|
+| ![build-scan-sign all green](docs/screenshots/cicd-build-scan-sign.png) | `build-scan-sign` workflow: **all 14 steps green** — OIDC login → build → Trivy scan → SARIF upload → push to ACR → SBOM (Syft/SPDX) → Cosign sign + attest SBOM. No client secret used anywhere. |
+| ![deploy all green](docs/screenshots/cicd-deploy.png) | `deploy` workflow (triggered automatically on build success): kubelogin with Azure RBAC (no local accounts) → `kubectl apply` → rollout confirmed. Kyverno **verified the Cosign signature** before admitting the pod. |
+
+### Vulnerability scanning — results in GitHub Security
+
+![Trivy code scanning](docs/screenshots/github-security-trivy.png)
+
+Trivy found 5 findings in `pip` and `flask` dependencies — **Medium/Low**, all unfixed upstream. Results surface directly in the GitHub Security tab (SARIF upload). The pipeline continues (`exit-code: 0` + `ignore-unfixed`) so known-unfixable CVEs don't block shipping; the findings are tracked and visible.
+
+### Signed image in ACR
+
+![ACR cosign signatures](docs/screenshots/acr-cosign-signatures.png)
+
+ACR `platform-app` repository: commit-SHA image tags (e.g. `e4574d46...`, `f189ad17...`) each have a corresponding `sha256-<digest>` OCI artifact — the **Cosign signature** stored alongside the image. Kyverno's `verify-image-signatures` ClusterPolicy checks this artifact at admission time and rejects any unsigned image.
+
+### Zero Trust workload identity — pod reads Key Vault secret
+
+| | |
+|---|---|
+| ![Pod running](docs/screenshots/pod-running-portforward.png) | `platform-app` pod: **1/1 Running**, 0 restarts. Port-forwarded to `localhost:8080`. |
+| ![Key Vault secret read](docs/screenshots/kv-secret-read.png) | `GET /` → `{"retrieved":"yes","secret_name":"demo-secret","secret_version":"8399f9..."}`. The pod exchanged its projected ServiceAccount token for an Entra ID token and read the secret — **no connection string, no API key, nothing stored in the container**. |
+
+### Identity & access — no local accounts, no standing secrets
 
 | | |
 |---|---|
 | ![AKS security configuration](docs/screenshots/Screenshot%202026-06-15%20203236.png) | AKS cluster: **Microsoft Entra ID authentication with Azure RBAC**, "Kubernetes local accounts" disabled, OIDC issuer + Workload Identity enabled. |
-| ![Key Vault RBAC](docs/screenshots/Screenshot%202026-06-15%20203752.png) | Key Vault IAM scoped to this resource: the workload's managed identity has exactly **Key Vault Secrets User** — nothing more. |
-| ![GitHub federated credentials](docs/screenshots/Screenshot%202026-06-15%20203849.png) | GitHub Actions app registration: **0 client secrets**, 2 OIDC federated credentials (branch + pull_request) — CI/CD authenticates without storing any password. |
+| ![Key Vault RBAC](docs/screenshots/Screenshot%202026-06-15%20203752.png) | Key Vault IAM: the workload's managed identity has exactly **Key Vault Secrets User** — nothing more. |
+| ![GitHub federated credentials](docs/screenshots/Screenshot%202026-06-15%20203849.png) | GitHub Actions app registration: **0 client secrets**, 2 OIDC federated credentials — CI/CD authenticates without storing any password. |
 
-**Hardened platform**
+### Hardened platform
 
 | | |
 |---|---|
@@ -83,14 +109,14 @@ stay inside the trial budget. Screenshots below are from that live run.
 | ![ACR networking](docs/screenshots/Screenshot%202026-06-15%20203520.png) | ACR public network access **Disabled** — image pulls only via the AKS subnet. |
 | ![Defender for Containers](docs/screenshots/Screenshot%202026-06-15%20204054.png) | Microsoft Defender for Containers plan **On**, covering the registry and cluster. |
 
-**Detection — Kyverno denial → Sentinel incident, mapped to MITRE ATT&CK**
+### Detection — Kyverno denial → Sentinel incident, mapped to MITRE ATT&CK
 
 | | |
 |---|---|
-| ![Sentinel analytics rules](docs/screenshots/Screenshot%202026-06-15%20204315.png) | 4 custom Sentinel analytics rules, all enabled, severities High/Medium. |
-| ![Sentinel rule detail](docs/screenshots/Screenshot%202026-06-15%20204436.png) | `ZTP-Privileged-Container-Blocked` rule detail: MITRE ATT&CK **T1610 (Deploy Container)** / T1611 (Escape to Host), 5-minute query frequency. |
-| ![Log Analytics KQL query](docs/screenshots/Screenshot%202026-06-15%20204605.png) | Raw audit trail: Kyverno's admission webhook denying `attacker-privileged-probe` for violating 9 Pod Security policies. |
-| ![Sentinel incident](docs/screenshots/Screenshot%202026-06-15%20204717.png) | The resulting **Sentinel incident** — Severity: High, Status: Active — created automatically from that denial. |
+| ![Sentinel analytics rules](docs/screenshots/Screenshot%202026-06-15%20204315.png) | 4 custom Sentinel analytics rules, severities High/Medium. |
+| ![Sentinel rule detail](docs/screenshots/Screenshot%202026-06-15%20204436.png) | `ZTP-Privileged-Container-Blocked`: MITRE ATT&CK **T1610 / T1611**, 5-minute query frequency. |
+| ![Log Analytics KQL query](docs/screenshots/Screenshot%202026-06-15%20204605.png) | Raw audit trail: Kyverno denying `attacker-privileged-probe` for violating 9 Pod Security policies. |
+| ![Sentinel incident](docs/screenshots/Screenshot%202026-06-15%20204717.png) | The resulting **Sentinel incident** — Severity: High, Status: Active — created automatically. |
 
 ## Terraform Modules
 
