@@ -49,6 +49,12 @@ spec:
               value: "demo-secret"
           ports:
             - containerPort: 8080
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
