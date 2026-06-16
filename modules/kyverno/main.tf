@@ -1,3 +1,52 @@
+# ACR scoped token so Kyverno can pull manifests to verify cosign signatures.
+# The built-in _repositories_pull scope map grants read access to all repositories.
+data "azurerm_container_registry" "acr" {
+  name                = var.acr_name
+  resource_group_name = var.acr_resource_group_name
+}
+
+resource "azurerm_container_registry_token" "kyverno_verify" {
+  name                    = "kyverno-verify"
+  container_registry_name = data.azurerm_container_registry.acr.name
+  resource_group_name     = var.acr_resource_group_name
+  scope_map_id            = "${data.azurerm_container_registry.acr.id}/scopeMaps/_repositories_pull"
+}
+
+resource "azurerm_container_registry_token_password" "kyverno_verify" {
+  container_registry_token_id = azurerm_container_registry_token.kyverno_verify.id
+  password1 {}
+}
+
+# Create the kyverno namespace first so the ACR credentials secret can be placed
+# there before Helm installs the admission controller (which needs the secret to
+# authenticate to ACR for image-signature verification via --imagePullSecrets).
+resource "kubernetes_namespace" "kyverno" {
+  metadata {
+    name = "kyverno"
+  }
+}
+
+resource "kubernetes_secret" "acr_kyverno_creds" {
+  metadata {
+    name      = "acr-kyverno-creds"
+    namespace = kubernetes_namespace.kyverno.metadata[0].name
+  }
+  type = "kubernetes.io/dockerconfigjson"
+  data = {
+    ".dockerconfigjson" = jsonencode({
+      auths = {
+        (var.acr_login_server) = {
+          username = azurerm_container_registry_token.kyverno_verify.name
+          password = azurerm_container_registry_token_password.kyverno_verify.password1[0].value
+          auth = base64encode(
+            "${azurerm_container_registry_token.kyverno_verify.name}:${azurerm_container_registry_token_password.kyverno_verify.password1[0].value}"
+          )
+        }
+      }
+    })
+  }
+}
+
 # Admission control engine. The policies below are CRDs (ClusterPolicy) that only
 # exist once this release is reconciled — every kubectl_manifest policy in this
 # module depends_on it so a fresh cluster applies in the right order.
@@ -13,7 +62,7 @@ resource "helm_release" "kyverno" {
   chart            = "kyverno"
   version          = var.kyverno_chart_version
   namespace        = "kyverno"
-  create_namespace = true
+  create_namespace = false  # namespace created explicitly above so the secret exists first
 
   set {
     name  = "replicaCount"
@@ -33,6 +82,28 @@ resource "helm_release" "kyverno" {
     name  = "features.policyExceptions.namespace"
     value = "kube-bench"
   }
+
+  # Pass the ACR credentials secret to the admission controller so it can
+  # authenticate to private ACR when verifying cosign image signatures.
+  set {
+    name  = "admissionController.extraArgs[0]"
+    value = "--imagePullSecrets=acr-kyverno-creds"
+  }
+
+  depends_on = [kubernetes_secret.acr_kyverno_creds]
+}
+
+# Pre-create the workload-demo namespace so the deploy workflow doesn't need to
+# and the Kyverno network-policy generator fires at namespace creation time
+# (giving the workload a default-deny-ingress policy from day one).
+resource "kubernetes_namespace" "workload_demo" {
+  metadata {
+    name = "workload-demo"
+    labels = {
+      "azure.workload.identity/use" = "true"
+    }
+  }
+  depends_on = [helm_release.kyverno]
 }
 
 # Baseline Pod Security Standard "restricted" — covers no-privileged-containers,

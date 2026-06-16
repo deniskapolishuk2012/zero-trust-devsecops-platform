@@ -47,8 +47,12 @@ resource "azurerm_role_assignment" "aks_cluster_user" {
   principal_id         = azuread_service_principal.github_actions.object_id
 }
 
+# Cluster Admin is required because the deploy workflow creates the workload-demo
+# namespace and applies cluster-scoped resources. RBAC Writer is namespace-scoped
+# and cannot create namespaces or ClusterRoleBindings, which causes the first
+# deploy to fail with "forbidden: user cannot create namespaces".
 resource "azurerm_role_assignment" "aks_rbac_writer" {
   scope                = var.aks_cluster_id
-  role_definition_name = "Azure Kubernetes Service RBAC Writer"
+  role_definition_name = "Azure Kubernetes Service RBAC Cluster Admin"
   principal_id         = azuread_service_principal.github_actions.object_id
 }

@@ -33,10 +33,9 @@ module "key_vault" {
 
   location            = var.location
   resource_group_name = module.governance.rg_security_name
-  aks_subnet_id       = module.networking.aks_subnet_id
   common_tags         = local.common_tags
 
-  depends_on = [module.networking]
+  depends_on = [module.governance]
 }
 
 module "aks" {
@@ -116,8 +115,10 @@ module "sentinel" {
 module "kyverno" {
   source = "../modules/kyverno"
 
-  acr_login_server  = module.acr.acr_login_server
-  cosign_public_key = var.cosign_public_key
+  acr_login_server        = module.acr.acr_login_server
+  acr_name                = module.acr.acr_name
+  acr_resource_group_name = module.governance.rg_platform_name
+  cosign_public_key       = var.cosign_public_key
 
   depends_on = [module.aks]
 }

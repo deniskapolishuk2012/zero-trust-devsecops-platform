@@ -1,5 +1,5 @@
 # Premium SKU required for: private endpoints, content trust (Cosign-compatible),
-# quarantine pattern (Trivy gate before an image is promotable), geo-replication
+# geo-replication, and the retention policy below.
 resource "azurerm_container_registry" "this" {
   name                = "acr${var.name_suffix}ztp"
   location            = var.location
@@ -9,7 +9,11 @@ resource "azurerm_container_registry" "this" {
 
   public_network_access_enabled = true
 
-  quarantine_policy_enabled = true
+  # Quarantine blocks all tag lookups until an image is manually released — cosign
+  # sign and attest fail because they can't find the manifest by tag or digest.
+  # Security scanning is enforced in the pipeline (Trivy step) before push, so
+  # quarantine adds no extra protection and breaks the supply chain.
+  quarantine_policy_enabled = false
   trust_policy {
     enabled = true
   }
