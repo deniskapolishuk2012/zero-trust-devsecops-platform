@@ -52,11 +52,6 @@ variable "github_branch" {
   default     = "master"
 }
 
-variable "operator_ip" {
-  description = "Your current public IP (curl ifconfig.me) — temporarily whitelisted in Key Vault so Terraform can create the demo secret. Leave empty after destroy."
-  type        = string
-  default     = ""
-}
 
 # --- AKS / Azure AD RBAC ---
 variable "aks_admin_group_object_ids" {

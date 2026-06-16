@@ -20,12 +20,12 @@ resource "azurerm_key_vault" "this" {
   enabled_for_deployment          = false
   enabled_for_template_deployment = false
 
-  public_network_access_enabled = var.operator_ip != "" ? true : false
+  public_network_access_enabled = false
 
   network_acls {
     bypass                     = "AzureServices"
     default_action             = "Deny"
-    ip_rules                   = var.operator_ip != "" ? ["${var.operator_ip}/32"] : []
+    ip_rules                   = []
     virtual_network_subnet_ids = [var.aks_subnet_id]
   }
 
@@ -39,13 +39,12 @@ resource "azurerm_management_lock" "key_vault" {
   notes      = "Managed by Terraform — do not delete manually"
 }
 
-# The workload-identity demo reads this secret to prove the pod-identity chain:
-# ServiceAccount token → Entra ID token exchange → Key Vault Secrets User read.
-# Requires operator_ip to be set in tfvars so Terraform can reach the data plane.
-resource "azurerm_key_vault_secret" "demo" {
-  name         = "demo-secret"
-  value        = var.demo_secret_value
-  key_vault_id = azurerm_key_vault.this.id
-
-  depends_on = [azurerm_key_vault.this]
+# Grants the operator (whoever runs terraform) Key Vault Secrets Officer on this
+# vault so they can create/rotate demo-secret via the Azure portal without opening
+# public network access — the portal backend is a trusted AzureService and bypasses
+# the network ACL (bypass = "AzureServices" above), so no ip_rules hack is needed.
+resource "azurerm_role_assignment" "operator_kv_secrets_officer" {
+  scope                = azurerm_key_vault.this.id
+  role_definition_name = "Key Vault Secrets Officer"
+  principal_id         = data.azurerm_client_config.current.object_id
 }
