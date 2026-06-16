@@ -82,22 +82,13 @@ resource "kubectl_manifest" "kube_bench_policy_exception" {
     }
     spec = {
       exceptions = [
-        for policy in [
-          "disallow-host-namespaces",
-          "disallow-host-path",
-          "require-run-as-nonroot",
-          "require-run-as-non-root-user",
-          "disallow-capabilities-strict",
-          "restrict-seccomp-strict",
-          "restrict-volume-types",
-          ] : {
-          policyName = policy
-          ruleNames = [
-            "autogen-cronjobs-${policy}",
-            "autogen-${policy}",
-            policy,
-          ]
-        }
+        { policyName = "disallow-host-namespaces", ruleNames = ["host-namespaces", "autogen-host-namespaces", "autogen-cronjob-host-namespaces"] },
+        { policyName = "disallow-host-path", ruleNames = ["host-path", "autogen-host-path", "autogen-cronjob-host-path"] },
+        { policyName = "disallow-privilege-escalation", ruleNames = ["privilege-escalation", "autogen-privilege-escalation", "autogen-cronjob-privilege-escalation"] },
+        { policyName = "disallow-capabilities-strict", ruleNames = ["require-drop-all", "autogen-require-drop-all", "autogen-cronjob-require-drop-all"] },
+        { policyName = "require-run-as-nonroot", ruleNames = ["run-as-non-root", "autogen-run-as-non-root", "autogen-cronjob-run-as-non-root"] },
+        { policyName = "restrict-seccomp-strict", ruleNames = ["check-seccomp-strict", "autogen-check-seccomp-strict", "autogen-cronjob-check-seccomp-strict"] },
+        { policyName = "restrict-volume-types", ruleNames = ["restricted-volumes", "autogen-restricted-volumes", "autogen-cronjob-restricted-volumes"] },
       ]
       match = {
         any = [
