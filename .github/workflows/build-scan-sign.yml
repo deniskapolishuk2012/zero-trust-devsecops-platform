@@ -79,7 +79,12 @@ jobs:
           sarif_file: trivy-results.sarif
 
       - name: Push to ACR
-        run: docker push ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+        run: |
+          docker push "${IMAGE_NAME}:${IMAGE_TAG}"
+          # ACR quarantine policy makes the tag inaccessible until release; cosign
+          # needs the immutable digest reference to find the manifest.
+          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "${IMAGE_NAME}:${IMAGE_TAG}")
+          echo "IMAGE_DIGEST=${DIGEST}" >> "$GITHUB_ENV"
 
       # SBOM travels with the image — Sentinel/Defender and any downstream consumer
       # can answer "what's actually in this thing" without re-scanning from scratch
@@ -108,7 +113,7 @@ jobs:
           COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
         run: |
           echo "$COSIGN_PRIVATE_KEY" > cosign.key
-          cosign sign --yes --key cosign.key "${IMAGE_NAME}:${IMAGE_TAG}"
+          cosign sign --yes --key cosign.key "${IMAGE_DIGEST}"
           rm -f cosign.key
 
       # Attach the SBOM as a verifiable attestation on the image itself
@@ -118,5 +123,5 @@ jobs:
           COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
         run: |
           echo "$COSIGN_PRIVATE_KEY" > cosign.key
-          cosign attest --yes --key cosign.key --type spdxjson --predicate sbom.spdx.json "${IMAGE_NAME}:${IMAGE_TAG}"
+          cosign attest --yes --key cosign.key --type spdxjson --predicate sbom.spdx.json "${IMAGE_DIGEST}"
           rm -f cosign.key
